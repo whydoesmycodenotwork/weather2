@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MET-NODE | Terminal 08-A</title>
+    <title>Live Weather Radar | Global Atmospheric Monitoring</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body, html {
@@ -38,31 +39,39 @@
             display: block;
         }
 
+        /* Auto-hiding Bar Logic */
+        .chrome-trigger {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 15px; /* Tiny trigger area */
+            z-index: 1002;
+        }
+
         .floating-chrome {
             position: absolute;
             top: 20px;
             left: 50%;
-            transform: translateX(-50%);
+            transform: translateX(-50%) translateY(-140%);
             z-index: 1000;
             width: 90%;
-            max-width: 900px;
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(20px) saturate(180%);
+            max-width: 950px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(24px) saturate(180%);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-            transition: opacity 0.3s, transform 0.3s;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
         }
 
-        #iframe-container:hover .floating-chrome,
+        /* Show chrome when hovering near top or interacting with it */
+        .chrome-trigger:hover + .floating-chrome,
+        .floating-chrome:hover,
         .floating-chrome:focus-within {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
-        }
-
-        .floating-chrome {
-            opacity: 0.15;
-            transform: translateX(-50%) translateY(-10px);
         }
 
         /* Weather Decoy Styles */
@@ -109,9 +118,7 @@
             50% { opacity: 0.3; }
             100% { opacity: 1; }
         }
-        .live-indicator {
-            animation: pulse-custom 2s infinite;
-        }
+        .live-indicator { animation: pulse-custom 2s infinite; }
 
         .tab-btn.active {
             background: rgba(56, 189, 248, 0.25);
@@ -124,29 +131,22 @@
             position: absolute;
             top: 100px;
             right: 5%;
-            width: 320px;
+            width: 340px;
             max-height: 70vh;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(32px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
             z-index: 1001;
             display: none;
             flex-direction: column;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8);
         }
 
-        .history-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
+        .history-item:hover { background: rgba(255, 255, 255, 0.05); }
 
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -156,7 +156,7 @@
         <nav class="border-b border-slate-800 px-6 py-4 flex justify-between items-center bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
             <div class="flex items-center gap-4">
                 <div class="w-2 h-2 rounded-full bg-sky-500 live-indicator"></div>
-                <span class="font-black tracking-widest text-sm uppercase">Met-Obs // Network_Station_08</span>
+                <span class="font-black tracking-widest text-sm uppercase">Met-Obs // Global_Station_08</span>
             </div>
             <div class="text-xs font-mono text-slate-400" id="utc-clock"></div>
         </nav>
@@ -166,8 +166,8 @@
                 <div class="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded mb-4 font-mono uppercase tracking-widest">
                     Live Data Stream Active
                 </div>
-                <h1 class="text-4xl font-light">Global Atmospheric Monitoring</h1>
-                <p class="text-slate-400 mt-2 text-sm font-mono" id="station-info">STATION ID: LOCATING VIA IP/GPS...</p>
+                <h1 class="text-4xl font-light">Atmospheric Monitoring Network</h1>
+                <p class="text-slate-400 mt-2 text-sm font-mono" id="station-info">STATION ID: LOCATING...</p>
             </header>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -222,13 +222,6 @@
                             [CONN] Initializing network...<br>
                         </div>
                     </div>
-                    
-                    <div class="p-4 border border-dashed border-slate-700 text-[10px] font-mono text-slate-500 leading-loose" id="meta-info">
-                        PRIMARY_PROVIDER: OPEN-METEO<br>
-                        COORD_SYSTEM: WGS84<br>
-                        SAMPLING_RATE: 0.003Hz<br>
-                        STATION_TYPE: VIRTUAL_METAR
-                    </div>
                 </div>
             </div>
         </main>
@@ -236,12 +229,14 @@
 
     <!-- Hidden Workspace with Floating Controls -->
     <div id="iframe-container">
+        <!-- Hover Trigger Zone -->
+        <div class="chrome-trigger"></div>
+
         <!-- Floating Glass Browser Chrome -->
         <div class="floating-chrome flex flex-col overflow-hidden">
             <!-- Tab Bar -->
             <div class="flex items-center px-4 pt-3 gap-2 overflow-x-auto no-scrollbar">
                 <div id="tabs-list" class="flex gap-2">
-                    <!-- Dynamic Tabs -->
                 </div>
                 <button onclick="addNewTab()" class="p-1.5 hover:bg-white/10 rounded-full text-slate-400 transition flex-shrink-0">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -269,7 +264,7 @@
                         </div>
                         <input type="text" id="url-input" 
                             class="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-5 py-2.5 text-xs font-mono text-slate-200 outline-none focus:border-sky-500/50 focus:ring-4 focus:ring-sky-500/10 transition" 
-                            placeholder="Search or enter URL..." value="https://www.wikipedia.org">
+                            placeholder="Search Google..." value="">
                     </div>
                 </div>
 
@@ -277,7 +272,7 @@
                     <button onclick="toggleFullscreen()" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400" title="Toggle Fullscreen">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                     </button>
-                    <button onclick="toggleSettings()" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400" title="Settings & History">
+                    <button onclick="toggleSettings()" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400" title="History">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                     <button onclick="toggleVisibility()" class="p-2.5 hover:bg-rose-500/20 rounded-lg transition text-rose-400 ml-2">
@@ -289,41 +284,29 @@
 
         <!-- Settings Panel -->
         <div id="settings-panel">
-            <div class="flex items-center justify-between p-4 border-b border-white/5">
+            <div class="flex items-center justify-between p-5 border-b border-white/5">
                 <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Settings & History</h3>
-                <button onclick="toggleSettings()" class="text-slate-500 hover:text-white">×</button>
+                <button onclick="toggleSettings()" class="text-slate-500 hover:text-white transition">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
             </div>
-            <div class="p-4 space-y-4 overflow-y-auto">
-                <div>
-                    <p class="text-[10px] uppercase text-slate-600 mb-2 font-bold">Preferences</p>
-                    <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5">
-                        <span class="text-xs text-slate-300">Clear Cache on Exit</span>
-                        <div class="w-8 h-4 bg-sky-500/20 rounded-full relative"><div class="absolute right-0.5 top-0.5 w-3 h-3 bg-sky-500 rounded-full"></div></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-2">
+            <div class="p-4 space-y-6 overflow-y-auto">
+                <section>
+                    <div class="flex items-center justify-between mb-3">
                         <p class="text-[10px] uppercase text-slate-600 font-bold">Recent History</p>
-                        <button onclick="clearHistory()" class="text-[10px] text-rose-400 hover:underline">Clear</button>
+                        <button onclick="clearHistory()" class="text-[10px] text-rose-400 hover:text-rose-300 transition">Clear All</button>
                     </div>
                     <div id="history-list" class="space-y-1">
-                        <!-- History items injected here -->
                     </div>
-                </div>
-            </div>
-            <div class="p-4 mt-auto border-t border-white/5 text-[9px] text-slate-600 text-center font-mono">
-                SECURE_BROWSER_ENGINE v2.4.0
+                </section>
             </div>
         </div>
 
-        <!-- Iframe viewport -->
         <div id="iframe-viewport" class="w-full h-full">
-            <!-- Iframes injected here -->
         </div>
         
-        <!-- Bottom Floating Status -->
         <div class="fixed bottom-6 left-6 px-4 py-2 rounded-full bg-slate-900/40 backdrop-blur-md border border-white/5 text-[9px] font-mono text-slate-400 z-[1001] pointer-events-none opacity-50">
-            <span class="text-sky-400">SESSION_TOKEN:</span> <span id="session-id">---</span> // <span id="current-url-display">wikipedia.org</span>
+            <span class="text-sky-400">CHANNEL:</span> <span id="session-id">---</span> // <span id="current-url-display">google.com</span>
         </div>
     </div>
 
@@ -333,8 +316,9 @@
         let tabs = [];
         let activeTabId = null;
         let history = JSON.parse(localStorage.getItem('browser_history') || '[]');
+        const homeURL = "https://www.google.com/search?igu=1";
+        const weatherTitle = "Live Weather Radar | Global Atmospheric Monitoring";
 
-        // --- Core Switching Logic ---
         document.addEventListener('keydown', (e) => {
             inputBuffer += e.key.toLowerCase();
             if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(1);
@@ -350,19 +334,18 @@
             if (decoy.style.display === 'none') {
                 decoy.style.display = 'block';
                 container.style.display = 'none';
-                document.title = "MET-NODE | Terminal 08-A";
+                document.title = weatherTitle;
             } else {
                 decoy.style.display = 'none';
                 container.style.display = 'block';
-                document.title = "Workspace";
-                if (tabs.length === 0) addNewTab();
+                document.title = "Local Radar";
+                if (tabs.length === 0) addNewTab(homeURL);
             }
         }
 
-        // --- Tab Management ---
-        function addNewTab(url = "https://www.wikipedia.org") {
+        function addNewTab(url = homeURL) {
             const id = 'tab-' + Date.now();
-            const tab = { id, url, title: 'New Tab' };
+            const tab = { id, url, title: 'Google' };
             tabs.push(tab);
             
             const iframesContainer = document.getElementById('iframe-viewport');
@@ -375,7 +358,7 @@
 
             switchTab(id);
             renderTabs();
-            addToHistory(url);
+            if(url !== homeURL) addToHistory(url);
         }
 
         function switchTab(id) {
@@ -384,30 +367,38 @@
             const activeIframe = document.getElementById('iframe-' + id);
             if (activeIframe) {
                 activeIframe.classList.add('active');
-                document.getElementById('url-input').value = activeIframe.src;
-                try {
-                    document.getElementById('current-url-display').innerText = new URL(activeIframe.src).hostname;
-                } catch(e) {}
+                document.getElementById('url-input').value = activeIframe.src === homeURL ? "" : activeIframe.src;
+                updateDisplayURL(activeIframe.src);
             }
             renderTabs();
+        }
+
+        function updateDisplayURL(url) {
+            try {
+                const display = document.getElementById('current-url-display');
+                if (url.includes("google.com")) {
+                    display.innerText = "google.com";
+                } else {
+                    display.innerText = new URL(url).hostname;
+                }
+            } catch(e) {
+                document.getElementById('current-url-display').innerText = "local.network";
+            }
         }
 
         function closeTab(id, e) {
             if (e) e.stopPropagation();
             if (tabs.length <= 1) {
-                // Just reset first tab
                 const tab = tabs[0];
                 const iframe = document.getElementById('iframe-' + tab.id);
-                iframe.src = "https://www.google.com/search?igu=1";
+                iframe.src = homeURL;
+                document.getElementById('url-input').value = "";
                 return;
             }
-            
             const index = tabs.findIndex(t => t.id === id);
             tabs = tabs.filter(t => t.id !== id);
-            
             const iframe = document.getElementById('iframe-' + id);
             if (iframe) iframe.remove();
-
             if (activeTabId === id) {
                 switchTab(tabs[Math.max(0, index - 1)].id);
             } else {
@@ -430,29 +421,26 @@
             });
         }
 
-        // --- Browser Utilities ---
         function navigate() {
             const input = document.getElementById('url-input');
             let val = input.value.trim();
             if (!val || !activeTabId) return;
-
             if (!val.includes('.') || val.includes(' ')) {
                 val = `https://www.google.com/search?q=${encodeURIComponent(val)}&igu=1`;
             } else if (!val.startsWith('http')) {
                 val = 'https://' + val;
             }
-
             const iframe = document.getElementById('iframe-' + activeTabId);
             iframe.src = val;
-            
             const tab = tabs.find(t => t.id === activeTabId);
             if (tab) {
                 tab.url = val;
-                tab.title = val.replace('https://', '').replace('http://', '').replace('www.', '').split(/[/?#]/)[0];
+                tab.title = val.replace('https://', '').replace('http://', '').replace('www.', '').split(/[/?#]/)[0].substring(0, 15);
             }
             addToHistory(val);
             renderTabs();
             renderHistory();
+            updateDisplayURL(val);
         }
 
         function toggleSettings() {
@@ -461,16 +449,12 @@
         }
 
         function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-            }
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
         }
 
         function addToHistory(url) {
+            if (url.includes('google.com/search?q=')) return;
             history.unshift({ url, time: new Date().toLocaleTimeString(), id: Date.now() });
             if (history.length > 50) history.pop();
             localStorage.setItem('browser_history', JSON.stringify(history));
@@ -492,15 +476,17 @@
             }
             history.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "history-item flex flex-col p-2 rounded-lg cursor-pointer transition overflow-hidden";
+                div.className = "history-item flex flex-col p-3 rounded-xl cursor-pointer transition overflow-hidden mb-1";
                 div.onclick = () => {
+                    const iframe = document.getElementById('iframe-' + activeTabId);
+                    iframe.src = item.url;
                     document.getElementById('url-input').value = item.url;
-                    navigate();
                     toggleSettings();
+                    updateDisplayURL(item.url);
                 };
                 div.innerHTML = `
                     <span class="text-[10px] text-slate-300 truncate font-mono">${item.url}</span>
-                    <span class="text-[8px] text-slate-600 font-mono">${item.time}</span>
+                    <span class="text-[8px] text-slate-600 font-mono mt-1">${item.time}</span>
                 `;
                 list.appendChild(div);
             });
@@ -510,15 +496,15 @@
             const iframe = document.getElementById('iframe-' + activeTabId);
             if (!iframe) return;
             if (action === 'reload') iframe.src = iframe.src;
-            if (action === 'back') history.back();
-            if (action === 'forward') history.forward();
+            if (action === 'back') window.history.back();
+            if (action === 'forward') window.history.forward();
         }
 
         document.getElementById('url-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') navigate();
         });
 
-        // --- Weather & Decoy ---
+        // --- Weather Logic ---
         async function fetchWeatherData(lat, lon) {
             const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,precipitation_probability,cloud_cover&timezone=auto&forecast_days=1`;
             try {
@@ -575,7 +561,7 @@
             const div = document.createElement('div');
             div.innerHTML = `<span class="text-slate-600">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
             terminal.appendChild(div);
-            if (terminal.childNodes.length > 15) terminal.removeChild(terminal.firstChild);
+            if (terminal.childNodes.length > 10) terminal.removeChild(terminal.firstChild);
             terminal.scrollTop = terminal.scrollHeight;
         }
 

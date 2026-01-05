@@ -45,8 +45,9 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 15px;
+            height: 40px; /* Increased default trigger area */
             z-index: 1002;
+            transition: height 0.2s ease;
         }
 
         .floating-chrome {
@@ -64,13 +65,15 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             opacity: 0;
+            pointer-events: none;
         }
 
         .chrome-trigger:hover + .floating-chrome,
         .floating-chrome:hover,
-        .floating-chrome:focus-within {
+        .floating-chrome.force-show {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
         }
 
         /* Weather Decoy Styles */
@@ -125,20 +128,15 @@
             border: 1px solid rgba(56, 189, 248, 0.4);
         }
 
-        #settings-panel {
-            position: absolute;
-            top: 100px;
-            right: 5%;
-            width: 340px;
-            max-height: 70vh;
-            background: rgba(15, 23, 42, 0.98);
-            backdrop-filter: blur(32px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            z-index: 1001;
+        #settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 3000;
             display: none;
-            flex-direction: column;
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8);
+            align-items: center;
+            justify-content: center;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -216,10 +214,36 @@
         </main>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div class="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                Browser Settings
+            </h2>
+            
+            <div class="space-y-6">
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <label class="text-xs font-mono text-slate-400 uppercase">Trigger Zone Height</label>
+                        <span id="trigger-val" class="text-xs font-mono text-sky-400">40px</span>
+                    </div>
+                    <input type="range" id="trigger-slider" min="10" max="200" value="40" 
+                        class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500">
+                    <p class="text-[10px] text-slate-500 mt-2 italic">How far from the top the mouse must be to show the navigation bar.</p>
+                </div>
+
+                <div class="pt-4 border-t border-white/5 flex justify-end">
+                    <button onclick="toggleSettings(false)" class="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-medium transition">Save & Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden Workspace -->
     <div id="iframe-container">
-        <div class="chrome-trigger"></div>
-        <div class="floating-chrome flex flex-col overflow-hidden">
+        <div class="chrome-trigger" id="chrome-trigger"></div>
+        <div class="floating-chrome flex flex-col overflow-hidden" id="chrome-bar">
             <!-- Tab Bar -->
             <div class="flex items-center px-4 pt-3 gap-2 overflow-x-auto no-scrollbar">
                 <div id="tabs-list" class="flex gap-2"></div>
@@ -244,6 +268,9 @@
                         placeholder="Search or enter URL...">
                 </div>
                 <div class="flex gap-1 items-center">
+                    <button onclick="toggleSettings(true)" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
                     <button onclick="toggleFullscreen()" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                     </button>
@@ -265,6 +292,7 @@
         const homeURL = "https://www.google.com/search?igu=1";
         const weatherTitle = "Live Weather Radar | Global Atmospheric Monitoring";
 
+        // Listen for key presses for secret code
         document.addEventListener('keydown', (e) => {
             inputBuffer += e.key.toLowerCase();
             if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(1);
@@ -273,6 +301,29 @@
                 inputBuffer = "";
             }
         });
+
+        // Settings Logic
+        const triggerSlider = document.getElementById('trigger-slider');
+        const triggerVal = document.getElementById('trigger-val');
+        const chromeTrigger = document.getElementById('chrome-trigger');
+
+        triggerSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            triggerVal.innerText = `${val}px`;
+            chromeTrigger.style.height = `${val}px`;
+        });
+
+        function toggleSettings(show) {
+            const modal = document.getElementById('settings-modal');
+            const chromeBar = document.getElementById('chrome-bar');
+            modal.style.display = show ? 'flex' : 'none';
+            
+            if (show) {
+                chromeBar.classList.add('force-show');
+            } else {
+                chromeBar.classList.remove('force-show');
+            }
+        }
 
         function toggleVisibility() {
             const decoy = document.getElementById('weather-decoy');
@@ -417,7 +468,6 @@
                 document.getElementById('utc-clock').innerText = "UTC: " + new Date().toISOString().replace('T', ' ').substring(0, 19);
             }, 1000);
             fetchWeather();
-            // Start with Google tab pre-loaded
             addNewTab(homeURL);
         };
     </script>

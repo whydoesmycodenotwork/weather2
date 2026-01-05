@@ -319,7 +319,8 @@
         let tabs = [];
         let activeTabId = null;
         let isFullscreenMode = false;
-        const homeURL = "https://www.google.com/search?igu=1";
+        // Updated homeURL to force English (hl=en)
+        const homeURL = "https://www.google.com/search?igu=1&hl=en";
 
         const chromeHeader = document.getElementById('chrome-header');
         const chromeTrigger = document.getElementById('chrome-trigger');
@@ -336,7 +337,6 @@
                     document.exitFullscreen();
                 }
             }
-            // Logic to update UI is handled by 'fullscreenchange' listener below
         }
 
         // Listen for browser fullscreen changes to sync UI
@@ -361,7 +361,6 @@
         });
 
         document.addEventListener('keydown', (e) => {
-            // Block standard F11 globally and try to toggle
             if (e.key === 'F11') {
                 e.preventDefault(); 
                 toggleBrowserFullscreen();
@@ -370,7 +369,6 @@
 
             if (!e.key) return;
 
-            // Secret key buffer
             const keyChar = e.key.toLowerCase();
             inputBuffer += keyChar;
             if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(1);
@@ -387,7 +385,6 @@
                 decoy.style.display = 'block';
                 container.style.display = 'none';
                 document.title = "Live Weather Radar";
-                // Exit fullscreen if visible mode is toggled off
                 if (document.fullscreenElement) document.exitFullscreen();
             } else {
                 decoy.style.display = 'none';
@@ -457,8 +454,13 @@
         function navigate() {
             let val = document.getElementById('url-input').value.trim();
             if (!val || !activeTabId) return;
-            if (!val.includes('.') || val.includes(' ')) val = `https://www.google.com/search?q=${encodeURIComponent(val)}&igu=1`;
-            else if (!val.startsWith('http')) val = 'https://' + val;
+            
+            // Forces search queries to use English interface (hl=en)
+            if (!val.includes('.') || val.includes(' ')) {
+                val = `https://www.google.com/search?q=${encodeURIComponent(val)}&igu=1&hl=en`;
+            } else if (!val.startsWith('http')) {
+                val = 'https://' + val;
+            }
             
             const iframe = document.getElementById('iframe-' + activeTabId);
             iframe.src = val;

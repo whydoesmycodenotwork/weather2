@@ -7,6 +7,32 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            --chrome-bg: #dee1e6;
+            --tab-active: #ffffff;
+            --tab-text: #4a4a4a;
+            --toolbar-bg: #ffffff;
+            --omnibox-bg: #f1f3f4;
+            --transition-speed: 0.25s;
+            --chrome-height: 88px;
+        }
+
+        body.theme-dark {
+            --chrome-bg: #202124;
+            --tab-active: #35363a;
+            --tab-text: #e8eaed;
+            --toolbar-bg: #35363a;
+            --omnibox-bg: #202124;
+        }
+
+        body.theme-blue {
+            --chrome-bg: #1e3a8a;
+            --tab-active: #2563eb;
+            --tab-text: #ffffff;
+            --toolbar-bg: #2563eb;
+            --omnibox-bg: #1e40af;
+        }
+
         body, html {
             margin: 0;
             padding: 0;
@@ -14,15 +40,24 @@
             width: 100vw;
             overflow: hidden;
             background-color: #020617;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         #iframe-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
             display: none;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
             background: #000;
+            position: relative;
+        }
+
+        /* Viewport Logic */
+        #iframe-viewport {
+            flex: 1;
+            position: relative;
+            background: white;
+            transition: margin-top var(--transition-speed) ease-in-out;
         }
 
         .iframe-instance {
@@ -39,41 +74,119 @@
             display: block;
         }
 
-        /* Auto-hiding Bar Logic */
-        .chrome-trigger {
-            position: absolute;
+        /* Chrome UI - Default State (Visible) */
+        .chrome-header {
+            position: relative;
             top: 0;
             left: 0;
             width: 100%;
-            height: 40px; /* Increased default trigger area */
-            z-index: 1002;
-            transition: height 0.2s ease;
+            background: var(--chrome-bg);
+            z-index: 2000;
+            height: var(--chrome-height);
+            transition: transform var(--transition-speed) ease-in-out, opacity 0.2s;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        .floating-chrome {
+        /* Fullscreen Overlay Mode */
+        #iframe-container.is-fullscreen .chrome-header {
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-140%);
-            z-index: 1000;
-            width: 90%;
-            max-width: 950px;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(24px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            opacity: 0;
-            pointer-events: none;
+            transform: translateY(-100%);
         }
 
-        .chrome-trigger:hover + .floating-chrome,
-        .floating-chrome:hover,
-        .floating-chrome.force-show {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-            pointer-events: auto;
+        #iframe-container.is-fullscreen.show-chrome .chrome-header {
+            transform: translateY(0);
+        }
+
+        /* Invisible hover trigger only active in fullscreen */
+        .chrome-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 15px;
+            z-index: 2001;
+            display: none;
+        }
+
+        #iframe-container.is-fullscreen .chrome-trigger {
+            display: block;
+        }
+
+        /* Tab System */
+        .tab-strip {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px 0 12px;
+            height: 44px;
+            gap: 4px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            height: 34px;
+            width: 180px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 12px;
+            color: var(--tab-text);
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            background: var(--tab-active);
+            font-weight: 500;
+        }
+
+        .tab-close {
+            margin-left: auto;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            opacity: 0.6;
+        }
+
+        .tab-close:hover { background: rgba(0,0,0,0.1); opacity: 1; }
+
+        .toolbar {
+            background: var(--toolbar-bg);
+            height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 12px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .omnibox {
+            flex: 1;
+            background: var(--omnibox-bg);
+            height: 28px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+        }
+
+        .omnibox input {
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 13px;
+            color: var(--tab-text);
+            margin-left: 8px;
         }
 
         /* Weather Decoy Styles */
@@ -81,57 +194,26 @@
             position: fixed;
             inset: 0;
             background: #0f172a;
-            z-index: 2000;
+            z-index: 10;
             overflow-y: auto;
             color: #f8fafc;
         }
 
-        .sensor-card {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(51, 65, 85, 1);
-            padding: 1.5rem;
-            border-radius: 4px;
-        }
-
-        .data-value {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            color: #38bdf8;
-        }
-
         .terminal-log {
             background: #000;
-            color: #64748b;
+            color: #10b981;
             font-family: monospace;
             font-size: 11px;
             padding: 12px;
-            height: 150px;
-            overflow: hidden;
-            border-left: 2px solid #38bdf8;
-        }
-
-        .radar-grid {
-            background-image: radial-gradient(circle, #1e293b 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-
-        @keyframes pulse-custom {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
-        .live-indicator { animation: pulse-custom 2s infinite; }
-
-        .tab-btn.active {
-            background: rgba(56, 189, 248, 0.25);
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.4);
+            height: 180px;
+            overflow-y: auto;
+            border: 1px solid #1e293b;
         }
 
         #settings-modal {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(8px);
             z-index: 3000;
             display: none;
@@ -140,148 +222,95 @@
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body>
+<body class="theme-light">
 
     <!-- Weather Decoy Layer -->
-    <div id="weather-decoy" class="radar-grid">
-        <nav class="border-b border-slate-800 px-6 py-4 flex justify-between items-center bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
+    <div id="weather-decoy">
+        <nav class="border-b border-slate-800 px-6 py-4 flex justify-between items-center bg-slate-900 sticky top-0 z-50">
             <div class="flex items-center gap-4">
-                <div class="w-2 h-2 rounded-full bg-sky-500 live-indicator"></div>
-                <span class="font-black tracking-widest text-sm uppercase">Met-Obs // Global_Station_08</span>
+                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                <span class="font-bold tracking-widest text-xs uppercase text-slate-300">Atmospheric Data Node // 08</span>
             </div>
-            <div class="text-xs font-mono text-slate-400" id="utc-clock"></div>
+            <div class="text-[10px] font-mono text-slate-500" id="utc-clock"></div>
         </nav>
 
-        <main class="max-w-7xl mx-auto p-6 lg:p-12">
-            <header class="mb-10">
-                <div class="inline-block bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded mb-4 font-mono uppercase tracking-widest">
-                    Live Data Stream Active
-                </div>
-                <h1 class="text-4xl font-light">Atmospheric Monitoring Network</h1>
-                <p class="text-slate-400 mt-2 text-sm font-mono" id="station-info">STATION ID: LOCATING...</p>
-            </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="sensor-card">
-                    <p class="text-[10px] uppercase text-slate-500 mb-1 tracking-wider">Temperature</p>
-                    <p class="text-3xl data-value" id="val-temp">--.-°C</p>
-                    <p class="text-[10px] text-emerald-500 mt-2 uppercase font-mono" id="val-temp-stat">Awaiting Sync</p>
-                </div>
-                <div class="sensor-card">
-                    <p class="text-[10px] uppercase text-slate-500 mb-1 tracking-wider">Humidity</p>
-                    <p class="text-3xl data-value" id="val-hum">--%</p>
-                </div>
-                <div class="sensor-card">
-                    <p class="text-[10px] uppercase text-slate-500 mb-1 tracking-wider">Barometer</p>
-                    <p class="text-3xl data-value" id="val-pres">---- hPa</p>
-                </div>
-                <div class="sensor-card">
-                    <p class="text-[10px] uppercase text-slate-500 mb-1 tracking-wider">Wind Velocity</p>
-                    <p class="text-3xl data-value" id="val-wind">--.- km/h</p>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="bg-slate-900/50 border border-slate-800 p-6">
-                        <h3 class="text-xs font-bold uppercase mb-4 text-slate-500 tracking-widest">Calculated Hourly Index</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs font-mono">
-                                <thead class="text-slate-500 border-b border-slate-800">
-                                    <tr>
-                                        <th class="pb-2">TIME</th>
-                                        <th class="pb-2">TEMP</th>
-                                        <th class="pb-2">PRECIP_PROB</th>
-                                        <th class="pb-2">CLOUDS</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-slate-300" id="forecast-body">
-                                </tbody>
-                            </table>
-                        </div>
+        <main class="max-w-6xl mx-auto p-8">
+            <h1 class="text-5xl font-extralight text-white mb-8">Live Analysis</h1>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
+                        <span class="block text-[10px] text-slate-500 uppercase">Station Status</span>
+                        <div id="station-info" class="text-sky-400 font-mono text-sm">Awaiting connection...</div>
                     </div>
+                    <div class="terminal-log no-scrollbar" id="terminal"></div>
                 </div>
-                <div class="space-y-6">
-                    <div class="bg-black p-4 border border-slate-800">
-                        <h3 class="text-[10px] font-bold uppercase mb-3 text-sky-500 tracking-tighter">Live_Station_Log</h3>
-                        <div class="terminal-log" id="terminal"></div>
-                    </div>
+                <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 flex items-center justify-center">
+                    <div class="w-32 h-32 border-4 border-emerald-500/20 rounded-full animate-ping"></div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal">
-        <div class="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                Browser Settings
-            </h2>
-            
-            <div class="space-y-6">
-                <div>
-                    <div class="flex justify-between mb-2">
-                        <label class="text-xs font-mono text-slate-400 uppercase">Trigger Zone Height</label>
-                        <span id="trigger-val" class="text-xs font-mono text-sky-400">40px</span>
-                    </div>
-                    <input type="range" id="trigger-slider" min="10" max="200" value="40" 
-                        class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500">
-                    <p class="text-[10px] text-slate-500 mt-2 italic">How far from the top the mouse must be to show the navigation bar.</p>
-                </div>
-
-                <div class="pt-4 border-t border-white/5 flex justify-end">
-                    <button onclick="toggleSettings(false)" class="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-sm font-medium transition">Save & Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Hidden Workspace -->
     <div id="iframe-container">
+        <!-- The Hover Trigger (Only active in fullscreen) -->
         <div class="chrome-trigger" id="chrome-trigger"></div>
-        <div class="floating-chrome flex flex-col overflow-hidden" id="chrome-bar">
-            <!-- Tab Bar -->
-            <div class="flex items-center px-4 pt-3 gap-2 overflow-x-auto no-scrollbar">
-                <div id="tabs-list" class="flex gap-2"></div>
-                <button onclick="addNewTab()" class="p-1.5 hover:bg-white/10 rounded-full text-slate-400 transition flex-shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        
+        <div class="chrome-header" id="chrome-header">
+            <div class="tab-strip no-scrollbar">
+                <div id="tabs-list" class="flex gap-1 items-end h-full"></div>
+                <button onclick="addNewTab()" class="ml-2 p-1.5 hover:bg-black/5 rounded-full">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
             </div>
             
-            <!-- Toolbar -->
-            <div class="flex items-center gap-3 p-4">
+            <div class="toolbar">
                 <div class="flex gap-1">
-                    <button onclick="browserControl('back')" class="p-2 hover:bg-white/10 rounded-lg transition text-slate-300">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-                    </button>
-                    <button onclick="browserControl('reload')" class="p-2 hover:bg-white/10 rounded-lg transition text-slate-300">
+                    <button onclick="browserControl('reload')" class="p-2 hover:bg-black/5 rounded-full">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8m0-5v5h-5"/></svg>
                     </button>
                 </div>
-                <div class="flex-grow">
-                    <input type="text" id="url-input" 
-                        class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-200 outline-none focus:border-sky-500/50 transition" 
-                        placeholder="Search or enter URL...">
+                
+                <div class="omnibox">
+                    <input type="text" id="url-input" spellcheck="false" placeholder="Search or type URL">
                 </div>
+
                 <div class="flex gap-1 items-center">
-                    <button onclick="toggleSettings(true)" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    </button>
-                    <button onclick="toggleFullscreen()" class="p-2.5 hover:bg-white/10 rounded-lg transition text-slate-400">
+                    <!-- NEW FULLSCREEN BUTTON -->
+                    <button id="fscr-btn" onclick="toggleBrowserFullscreen()" class="p-2 hover:bg-black/5 rounded-full" title="Enter Fullscreen (F11)">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                     </button>
-                    <button onclick="toggleVisibility()" class="p-2.5 hover:bg-rose-500/20 rounded-lg transition text-rose-400 ml-2">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                    
+                    <button onclick="toggleSettings(true)" class="p-2 hover:bg-black/5 rounded-full">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
+                    <button onclick="toggleVisibility()" class="p-2 text-rose-500 hover:bg-rose-50 rounded-full">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
         </div>
 
-        <div id="iframe-viewport" class="w-full h-full"></div>
+        <div id="iframe-viewport"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" onclick="if(event.target==this)toggleSettings(false)">
+        <div class="bg-white p-8 rounded-3xl w-80 shadow-2xl">
+            <h2 class="text-xl font-bold mb-6">Display Settings</h2>
+            <div class="space-y-4">
+                <button onclick="setTheme('light')" class="w-full p-3 bg-gray-100 rounded-xl text-left hover:bg-gray-200">Light Mode</button>
+                <button onclick="setTheme('dark')" class="w-full p-3 bg-gray-800 text-white rounded-xl text-left hover:bg-gray-700">Dark Mode</button>
+                <button onclick="setTheme('blue')" class="w-full p-3 bg-blue-600 text-white rounded-xl text-left hover:bg-blue-500">Midnight Blue</button>
+                <div class="pt-4 border-t">
+                    <p class="text-xs text-gray-400 mb-2 font-medium">Fullscreen Controls</p>
+                    <button onclick="toggleBrowserFullscreen()" class="w-full py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm mb-2">Toggle True Fullscreen</button>
+                    <p class="text-[10px] text-gray-400">Note: Browser security requires a click to enter Fullscreen. Keys are often blocked.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -289,12 +318,61 @@
         let inputBuffer = "";
         let tabs = [];
         let activeTabId = null;
+        let isFullscreenMode = false;
         const homeURL = "https://www.google.com/search?igu=1";
-        const weatherTitle = "Live Weather Radar | Global Atmospheric Monitoring";
 
-        // Listen for key presses for secret code
+        const chromeHeader = document.getElementById('chrome-header');
+        const chromeTrigger = document.getElementById('chrome-trigger');
+        const iframeContainer = document.getElementById('iframe-container');
+
+        // Toggle True Browser Fullscreen via API
+        function toggleBrowserFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+            // Logic to update UI is handled by 'fullscreenchange' listener below
+        }
+
+        // Listen for browser fullscreen changes to sync UI
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                isFullscreenMode = true;
+                iframeContainer.classList.add('is-fullscreen');
+                iframeContainer.classList.remove('show-chrome');
+            } else {
+                isFullscreenMode = false;
+                iframeContainer.classList.remove('is-fullscreen', 'show-chrome');
+            }
+        });
+
+        // Hover Logic (Only relevant in Fullscreen)
+        chromeTrigger.addEventListener('mouseenter', () => {
+            if (isFullscreenMode) iframeContainer.classList.add('show-chrome');
+        });
+
+        chromeHeader.addEventListener('mouseleave', () => {
+            if (isFullscreenMode) iframeContainer.classList.remove('show-chrome');
+        });
+
         document.addEventListener('keydown', (e) => {
-            inputBuffer += e.key.toLowerCase();
+            // Block standard F11 globally and try to toggle
+            if (e.key === 'F11') {
+                e.preventDefault(); 
+                toggleBrowserFullscreen();
+                return;
+            }
+
+            if (!e.key) return;
+
+            // Secret key buffer
+            const keyChar = e.key.toLowerCase();
+            inputBuffer += keyChar;
             if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(1);
             if (inputBuffer.endsWith(secretCode)) {
                 toggleVisibility();
@@ -302,56 +380,35 @@
             }
         });
 
-        // Settings Logic
-        const triggerSlider = document.getElementById('trigger-slider');
-        const triggerVal = document.getElementById('trigger-val');
-        const chromeTrigger = document.getElementById('chrome-trigger');
-
-        triggerSlider.addEventListener('input', (e) => {
-            const val = e.target.value;
-            triggerVal.innerText = `${val}px`;
-            chromeTrigger.style.height = `${val}px`;
-        });
-
-        function toggleSettings(show) {
-            const modal = document.getElementById('settings-modal');
-            const chromeBar = document.getElementById('chrome-bar');
-            modal.style.display = show ? 'flex' : 'none';
-            
-            if (show) {
-                chromeBar.classList.add('force-show');
-            } else {
-                chromeBar.classList.remove('force-show');
-            }
-        }
-
         function toggleVisibility() {
             const decoy = document.getElementById('weather-decoy');
             const container = document.getElementById('iframe-container');
             if (decoy.style.display === 'none') {
                 decoy.style.display = 'block';
                 container.style.display = 'none';
-                document.title = weatherTitle;
+                document.title = "Live Weather Radar";
+                // Exit fullscreen if visible mode is toggled off
+                if (document.fullscreenElement) document.exitFullscreen();
             } else {
                 decoy.style.display = 'none';
-                container.style.display = 'block';
-                document.title = "Local Radar";
+                container.style.display = 'flex';
+                document.title = "Workspace Console";
                 if (tabs.length === 0) addNewTab(homeURL);
             }
         }
 
         function addNewTab(url = homeURL) {
-            const id = 'tab-' + Date.now();
-            const tab = { id, url, title: url === homeURL ? 'Google' : 'New Tab' };
+            const id = 'tab-' + Math.random().toString(36).substr(2, 9);
+            const tab = { id, url, title: 'New Tab' };
             tabs.push(tab);
             
-            const iframesContainer = document.getElementById('iframe-viewport');
+            const viewport = document.getElementById('iframe-viewport');
             const iframe = document.createElement('iframe');
             iframe.id = 'iframe-' + id;
             iframe.className = 'iframe-instance';
             iframe.src = url;
             iframe.setAttribute('sandbox', 'allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads');
-            iframesContainer.appendChild(iframe);
+            viewport.appendChild(iframe);
 
             switchTab(id);
         }
@@ -362,7 +419,7 @@
             const activeIframe = document.getElementById('iframe-' + id);
             if (activeIframe) {
                 activeIframe.classList.add('active');
-                document.getElementById('url-input').value = activeIframe.src === homeURL ? "" : activeIframe.src;
+                document.getElementById('url-input').value = (activeIframe.src === homeURL) ? "" : activeIframe.src;
             }
             renderTabs();
         }
@@ -371,24 +428,22 @@
             const list = document.getElementById('tabs-list');
             list.innerHTML = '';
             tabs.forEach(tab => {
-                const btn = document.createElement('div');
-                btn.className = `tab-btn group flex items-center gap-3 px-4 py-2 rounded-xl cursor-pointer transition text-[10px] font-mono border border-white/5 bg-white/5 hover:bg-white/10 flex-shrink-0 ${tab.id === activeTabId ? 'active' : 'opacity-70'}`;
-                btn.onclick = () => switchTab(tab.id);
-                btn.innerHTML = `
-                    <span class="max-w-[100px] truncate">${tab.title}</span>
-                    <button onclick="closeTab('${tab.id}', event)" class="hover:text-rose-400">×</button>
+                const tabEl = document.createElement('div');
+                tabEl.className = `tab ${tab.id === activeTabId ? 'active' : ''}`;
+                tabEl.onclick = () => switchTab(tab.id);
+                tabEl.innerHTML = `
+                    <span class="truncate pointer-events-none text-[11px]">${tab.title}</span>
+                    <button onclick="closeTab('${tab.id}', event)" class="tab-close">×</button>
                 `;
-                list.appendChild(btn);
+                list.appendChild(tabEl);
             });
         }
 
         function closeTab(id, e) {
             e.stopPropagation();
-            if (tabs.length <= 1) {
-                const iframe = document.getElementById('iframe-' + tabs[0].id);
-                iframe.src = homeURL;
-                tabs[0].url = homeURL;
-                tabs[0].title = "Google";
+            if (tabs.length === 1) {
+                document.getElementById('iframe-' + id).src = homeURL;
+                tabs[0].title = "New Tab";
                 renderTabs();
                 return;
             }
@@ -407,10 +462,21 @@
             
             const iframe = document.getElementById('iframe-' + activeTabId);
             iframe.src = val;
-            const tab = tabs.find(t => t.id === activeTabId);
-            tab.url = val;
-            tab.title = val.replace(/^https?:\/\/(www\.)?/, '').split(/[/?#]/)[0].substring(0, 15);
+            tabs.find(t => t.id === activeTabId).title = val.split('/')[2] || "New Tab";
             renderTabs();
+        }
+
+        document.getElementById('url-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { navigate(); e.target.blur(); }
+        });
+
+        function setTheme(t) {
+            document.body.className = `theme-${t}`;
+            toggleSettings(false);
+        }
+
+        function toggleSettings(show) {
+            document.getElementById('settings-modal').style.display = show ? 'flex' : 'none';
         }
 
         function browserControl(action) {
@@ -418,57 +484,29 @@
             if (iframe && action === 'reload') iframe.src = iframe.src;
         }
 
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
-
-        document.getElementById('url-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') navigate();
-        });
-
-        // Weather Fetching
-        async function fetchWeather() {
+        // Decoy Weather Logic
+        async function initWeather() {
             try {
                 const locRes = await fetch('https://ipapi.co/json/');
                 const locData = await locRes.json();
-                const lat = locData.latitude || 44.97;
-                const lon = locData.longitude || -93.26;
-                document.getElementById('station-info').innerText = `STATION ID: ${lat} / ${lon} | IP: ${locData.ip}`;
-                
-                const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,precipitation_probability,cloud_cover&forecast_days=1`);
-                const data = await wRes.json();
-                
-                document.getElementById('val-temp').innerText = `${data.current.temperature_2m}°C`;
-                document.getElementById('val-hum').innerText = `${data.current.relative_humidity_2m}%`;
-                document.getElementById('val-pres').innerText = `${data.current.surface_pressure} hPa`;
-                document.getElementById('val-wind').innerText = `${data.current.wind_speed_10m} km/h`;
-                document.getElementById('val-temp-stat').innerText = "DATA_SYNC_SUCCESS";
-
-                const tbody = document.getElementById('forecast-body');
-                tbody.innerHTML = '';
-                for(let i = 0; i < 5; i++) {
-                    const row = document.createElement('tr');
-                    row.className = "border-b border-slate-800/50";
-                    row.innerHTML = `<td class="py-3 font-mono text-[10px]">${data.hourly.time[i].split('T')[1]}</td><td>${data.hourly.temperature_2m[i]}°C</td><td>${data.hourly.precipitation_probability[i]}%</td><td>${data.hourly.cloud_cover[i]}%</td>`;
-                    tbody.appendChild(row);
-                }
-                logTerminal("Weather stream synchronized.");
-            } catch(e) { logTerminal("Link failure: Using cached telemetry."); }
+                document.getElementById('station-info').innerText = `NODE: ${locData.city.toUpperCase()} (${locData.ip})`;
+                logTerminal("Weather stream synchronized via " + locData.org);
+            } catch(e) { logTerminal("L-3 Sync Failure. Local mode."); }
         }
 
         function logTerminal(msg) {
             const term = document.getElementById('terminal');
+            if (!term) return;
             term.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
             term.scrollTop = term.scrollHeight;
         }
 
         window.onload = () => {
             setInterval(() => {
-                document.getElementById('utc-clock').innerText = "UTC: " + new Date().toISOString().replace('T', ' ').substring(0, 19);
+                const clock = document.getElementById('utc-clock');
+                if (clock) clock.innerText = new Date().toISOString().replace('T', ' ').substring(0, 19);
             }, 1000);
-            fetchWeather();
-            addNewTab(homeURL);
+            initWeather();
         };
     </script>
 </body>

@@ -6,6 +6,8 @@
     <title>Live Weather Radar | Global Atmospheric Monitoring</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         :root {
             --chrome-bg: #dee1e6;
@@ -25,12 +27,13 @@
             --omnibox-bg: #202124;
         }
 
-        body.theme-blue {
-            --chrome-bg: #1e3a8a;
-            --tab-active: #2563eb;
-            --tab-text: #ffffff;
-            --toolbar-bg: #2563eb;
-            --omnibox-bg: #1e40af;
+        /* Gaming Theme Overrides */
+        body.system-games {
+            --chrome-bg: #0f172a;
+            --tab-active: #1e293b;
+            --tab-text: #38bdf8;
+            --toolbar-bg: #1e293b;
+            --omnibox-bg: #0f172a;
         }
 
         body, html {
@@ -52,29 +55,30 @@
             position: relative;
         }
 
-        /* Viewport Logic */
         #iframe-viewport {
             flex: 1;
             position: relative;
             background: white;
-            transition: margin-top var(--transition-speed) ease-in-out;
+            display: flex;
+            overflow: hidden;
         }
 
         .iframe-instance {
-            position: absolute;
-            inset: 0;
-            width: 100%;
+            flex: 1;
             height: 100%;
             border: none;
             background: white;
             display: none;
+            position: relative;
         }
 
-        .iframe-instance.active {
-            display: block;
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
 
-        /* Chrome UI - Default State (Visible) */
+        /* Chrome UI */
         .chrome-header {
             position: relative;
             top: 0;
@@ -90,32 +94,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* Fullscreen Overlay Mode */
-        #iframe-container.is-fullscreen .chrome-header {
-            position: absolute;
-            transform: translateY(-100%);
-        }
-
-        #iframe-container.is-fullscreen.show-chrome .chrome-header {
-            transform: translateY(0);
-        }
-
-        /* Invisible hover trigger only active in fullscreen */
-        .chrome-trigger {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 15px;
-            z-index: 2001;
-            display: none;
-        }
-
-        #iframe-container.is-fullscreen .chrome-trigger {
-            display: block;
-        }
-
-        /* Tab System */
         .tab-strip {
             display: flex;
             align-items: center;
@@ -127,22 +105,24 @@
 
         .tab {
             height: 34px;
-            width: 180px;
+            width: 160px;
             display: flex;
             align-items: center;
             padding: 0 12px;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--tab-text);
             background: rgba(0, 0, 0, 0.05);
             border-radius: 8px 8px 0 0;
             transition: all 0.2s ease;
             flex-shrink: 0;
             cursor: pointer;
+            position: relative;
         }
 
         .tab.active {
             background: var(--tab-active);
             font-weight: 500;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
         }
 
         .tab-close {
@@ -172,11 +152,12 @@
         .omnibox {
             flex: 1;
             background: var(--omnibox-bg);
-            height: 28px;
-            border-radius: 14px;
+            height: 30px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             padding: 0 14px;
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
         .omnibox input {
@@ -193,7 +174,7 @@
         #weather-decoy {
             position: fixed;
             inset: 0;
-            background: #0f172a;
+            background: #020617;
             z-index: 10;
             overflow-y: auto;
             color: #f8fafc;
@@ -205,86 +186,183 @@
             font-family: monospace;
             font-size: 11px;
             padding: 12px;
-            height: 180px;
+            height: 250px;
             overflow-y: auto;
             border: 1px solid #1e293b;
         }
 
-        #settings-modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
-            z-index: 3000;
-            display: none;
-            align-items: center;
-            justify-content: center;
+        #map-container {
+            height: 450px;
+            width: 100%;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+            position: relative;
+        }
+
+        .radar-scan {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            background: linear-gradient(to right, transparent 49.5%, rgba(16, 185, 129, 0.2) 50%, transparent 50.5%);
+            background-size: 200% 100%;
+            animation: scan 4s linear infinite;
+        }
+
+        @keyframes scan {
+            from { background-position: 200% 0; }
+            to { background-position: -200% 0; }
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Game Grid Customization */
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 25px;
+            padding: 40px;
+            background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+            color: white;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .game-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .game-card:hover {
+            background: rgba(56, 189, 248, 0.1);
+            transform: scale(1.05);
+            border-color: #38bdf8;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+        }
+
+        .game-card span { font-size: 40px; }
+
+        .proxy-badge {
+            font-size: 9px;
+            background: #f59e0b;
+            color: black;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+            font-weight: 800;
+        }
     </style>
 </head>
 <body class="theme-light">
 
     <!-- Weather Decoy Layer -->
     <div id="weather-decoy">
-        <nav class="border-b border-slate-800 px-6 py-4 flex justify-between items-center bg-slate-900 sticky top-0 z-50">
+        <nav class="border-b border-slate-800 px-6 py-4 flex justify-between items-center bg-slate-900 sticky top-0 z-[1001]">
             <div class="flex items-center gap-4">
-                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-                <span class="font-bold tracking-widest text-xs uppercase text-slate-300">Atmospheric Data Node // 08</span>
+                <div class="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]"></div>
+                <span class="font-bold tracking-widest text-xs uppercase text-slate-300">Live Weather Radar Node // 402</span>
             </div>
             <div class="text-[10px] font-mono text-slate-500" id="utc-clock"></div>
         </nav>
 
-        <main class="max-w-6xl mx-auto p-8">
-            <h1 class="text-5xl font-extralight text-white mb-8">Live Analysis</h1>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800">
-                        <span class="block text-[10px] text-slate-500 uppercase">Station Status</span>
-                        <div id="station-info" class="text-sky-400 font-mono text-sm">Awaiting connection...</div>
+        <main class="max-w-7xl mx-auto p-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Vector Analysis</h3>
+                        <div class="flex flex-col items-center justify-center p-4 bg-black/40 rounded-xl mb-4">
+                            <div id="wind-compass" class="w-24 h-24 rounded-full border border-emerald-500/30 relative flex items-center justify-center transition-transform duration-1000">
+                                <div class="w-1 h-12 bg-emerald-500 rounded-full absolute top-2"></div>
+                                <div class="text-[10px] text-emerald-500 font-bold">N</div>
+                            </div>
+                            <div class="mt-4 text-center">
+                                <div id="wind-speed" class="text-2xl font-mono text-emerald-400">12.4 kn</div>
+                                <div class="text-[10px] text-slate-500 uppercase">Velocity Data</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="terminal-log no-scrollbar" id="terminal"></div>
+                    <div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Station Stats</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-xs text-slate-400">Lat/Long</span>
+                                <span class="text-[10px] font-mono text-white" id="decoy-coords">37.77 / -122.41</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-2">
+                                <span class="text-xs text-slate-400">Pressure</span>
+                                <span class="text-[10px] font-mono text-white">1013.2 hPa</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 flex items-center justify-center">
-                    <div class="w-32 h-32 border-4 border-emerald-500/20 rounded-full animate-ping"></div>
+
+                <div class="lg:col-span-3 space-y-6">
+                    <div id="map-container">
+                        <div id="map" style="height: 100%; width: 100%;"></div>
+                        <div class="radar-scan"></div>
+                        <div class="absolute bottom-4 left-4 z-[1000] bg-black/60 backdrop-blur-md p-3 rounded-lg border border-white/10 text-white">
+                            <div class="text-[10px] uppercase font-bold text-emerald-400 mb-1">Radar Overlay</div>
+                            <div class="text-xs opacity-80">Composite Reflectivity (C-Band)</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="terminal-log no-scrollbar rounded-xl shadow-2xl" id="terminal"></div>
+                        <div class="bg-slate-900/40 p-6 rounded-xl border border-slate-800 flex flex-col justify-center text-center">
+                            <div class="flex items-center gap-4 mb-4 justify-center">
+                                <div class="text-4xl" id="weather-icon">⛅</div>
+                                <div>
+                                    <div class="text-3xl font-light text-white" id="decoy-temp">22.4°C</div>
+                                    <div class="text-xs text-slate-500 uppercase tracking-widest">Atmospheric Temp</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Hidden Workspace -->
+    <!-- Workspace Container -->
     <div id="iframe-container">
-        <!-- The Hover Trigger (Only active in fullscreen) -->
-        <div class="chrome-trigger" id="chrome-trigger"></div>
-        
         <div class="chrome-header" id="chrome-header">
             <div class="tab-strip no-scrollbar">
                 <div id="tabs-list" class="flex gap-1 items-end h-full"></div>
-                <button onclick="addNewTab()" class="ml-2 p-1.5 hover:bg-black/5 rounded-full">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+                <button onclick="addNewTab()" class="ml-2 p-1.5 hover:bg-black/10 rounded-full transition-colors" title="New Tab">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
             </div>
             
             <div class="toolbar">
                 <div class="flex gap-1">
-                    <button onclick="browserControl('reload')" class="p-2 hover:bg-black/5 rounded-full">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8m0-5v5h-5"/></svg>
-                    </button>
+                    <button onclick="browserControl('back')" class="p-2 hover:bg-black/5 rounded-full"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <button onclick="browserControl('reload')" class="p-2 hover:bg-black/5 rounded-full"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8m0-5v5h-5"/></svg></button>
                 </div>
                 
                 <div class="omnibox">
+                    <div id="sec-indicator" class="mr-1 text-emerald-500"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/></svg></div>
                     <input type="text" id="url-input" spellcheck="false" placeholder="Search or type URL">
+                    <span id="proxy-indicator" class="proxy-badge hidden">PROXY ENGINE</span>
                 </div>
 
                 <div class="flex gap-1 items-center">
-                    <!-- NEW FULLSCREEN BUTTON -->
-                    <button id="fscr-btn" onclick="toggleBrowserFullscreen()" class="p-2 hover:bg-black/5 rounded-full" title="Enter Fullscreen (F11)">
+                    <button onclick="toggleFullscreen()" class="p-2 hover:bg-black/5 rounded-full" title="Toggle Fullscreen">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
                     </button>
-                    
-                    <button onclick="toggleSettings(true)" class="p-2 hover:bg-black/5 rounded-full">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <button id="proxy-btn" onclick="toggleProxyMode()" class="p-2 hover:bg-black/5 rounded-full" title="Try Proxy Mode">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     </button>
                     <button onclick="toggleVisibility()" class="p-2 text-rose-500 hover:bg-rose-50 rounded-full">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -296,140 +374,169 @@
         <div id="iframe-viewport"></div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" onclick="if(event.target==this)toggleSettings(false)">
-        <div class="bg-white p-8 rounded-3xl w-80 shadow-2xl">
-            <h2 class="text-xl font-bold mb-6">Display Settings</h2>
-            <div class="space-y-4">
-                <button onclick="setTheme('light')" class="w-full p-3 bg-gray-100 rounded-xl text-left hover:bg-gray-200">Light Mode</button>
-                <button onclick="setTheme('dark')" class="w-full p-3 bg-gray-800 text-white rounded-xl text-left hover:bg-gray-700">Dark Mode</button>
-                <button onclick="setTheme('blue')" class="w-full p-3 bg-blue-600 text-white rounded-xl text-left hover:bg-blue-500">Midnight Blue</button>
-                <div class="pt-4 border-t">
-                    <p class="text-xs text-gray-400 mb-2 font-medium">Fullscreen Controls</p>
-                    <button onclick="toggleBrowserFullscreen()" class="w-full py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm mb-2">Toggle True Fullscreen</button>
-                    <p class="text-[10px] text-gray-400">Note: Browser security requires a click to enter Fullscreen. Keys are often blocked.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        const secretCode = "mommies";
+        const CODES = { BROWSER: "mommies", GAMES: "daddies" };
         let inputBuffer = "";
-        let tabs = [];
-        let activeTabId = null;
-        let isFullscreenMode = false;
-        // Updated homeURL to force English (hl=en)
-        const homeURL = "https://www.google.com/search?igu=1&hl=en";
+        let lastEscTime = 0;
+        let lastFTime = 0;
+        let map;
+        let isProxyActive = false;
 
-        const chromeHeader = document.getElementById('chrome-header');
-        const chromeTrigger = document.getElementById('chrome-trigger');
-        const iframeContainer = document.getElementById('iframe-container');
+        let currentSystem = null; 
+        let sessions = {
+            browser: { tabs: [], activeTabId: null, theme: 'light' },
+            games: { tabs: [], activeTabId: null, theme: 'dark' }
+        };
 
-        // Toggle True Browser Fullscreen via API
-        function toggleBrowserFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
-                });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+        const homeURL = "https://www.google.com/search?igu=1"; 
+        const sandboxAttr = "allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads";
+
+        function initDecoyMap() {
+            try {
+                map = L.map('map', { center: [37.77, -122.41], zoom: 10, zoomControl: false, attributionControl: false });
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+                L.tileLayer('https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=d22d103366c8d447f71124d3550e5616').addTo(map);
+            } catch (e) {
+                console.error("Map initialization failed", e);
             }
         }
 
-        // Listen for browser fullscreen changes to sync UI
-        document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement) {
-                isFullscreenMode = true;
-                iframeContainer.classList.add('is-fullscreen');
-                iframeContainer.classList.remove('show-chrome');
-            } else {
-                isFullscreenMode = false;
-                iframeContainer.classList.remove('is-fullscreen', 'show-chrome');
-            }
-        });
-
-        // Hover Logic (Only relevant in Fullscreen)
-        chromeTrigger.addEventListener('mouseenter', () => {
-            if (isFullscreenMode) iframeContainer.classList.add('show-chrome');
-        });
-
-        chromeHeader.addEventListener('mouseleave', () => {
-            if (isFullscreenMode) iframeContainer.classList.remove('show-chrome');
-        });
-
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'F11') {
-                e.preventDefault(); 
-                toggleBrowserFullscreen();
-                return;
+            const now = Date.now();
+            
+            // Double Esc to hide
+            if (e.key === 'Escape') {
+                if (now - lastEscTime < 400) toggleVisibility();
+                lastEscTime = now;
+            }
+            
+            // Double F to fullscreen (when sys active)
+            if (e.key.toLowerCase() === 'f' && currentSystem) {
+                if (now - lastFTime < 400) toggleFullscreen();
+                lastFTime = now;
             }
 
-            if (!e.key) return;
-
-            const keyChar = e.key.toLowerCase();
-            inputBuffer += keyChar;
+            inputBuffer += e.key.toLowerCase();
             if (inputBuffer.length > 20) inputBuffer = inputBuffer.substring(1);
-            if (inputBuffer.endsWith(secretCode)) {
-                toggleVisibility();
-                inputBuffer = "";
-            }
+
+            if (inputBuffer.endsWith(CODES.BROWSER)) { switchSystem('browser'); inputBuffer = ""; }
+            else if (inputBuffer.endsWith(CODES.GAMES)) { switchSystem('games'); inputBuffer = ""; }
         });
+
+        function switchSystem(sysType) {
+            currentSystem = sysType;
+            document.body.classList.remove('system-browser', 'system-games');
+            document.body.classList.add(`system-${sysType}`);
+            
+            document.getElementById('weather-decoy').style.display = 'none';
+            document.getElementById('iframe-container').style.display = 'flex';
+            
+            const session = sessions[sysType];
+            if (session.tabs.length === 0) {
+                const initialUrl = sysType === 'games' ? 'internal://games' : homeURL;
+                addNewTab(initialUrl);
+            } else {
+                renderTabs();
+                updateViewportLayout();
+            }
+        }
 
         function toggleVisibility() {
-            const decoy = document.getElementById('weather-decoy');
-            const container = document.getElementById('iframe-container');
-            if (decoy.style.display === 'none') {
-                decoy.style.display = 'block';
-                container.style.display = 'none';
-                document.title = "Live Weather Radar";
-                if (document.fullscreenElement) document.exitFullscreen();
+            document.getElementById('weather-decoy').style.display = 'block';
+            document.getElementById('iframe-container').style.display = 'none';
+            document.title = "Live Weather Radar";
+            if (map) map.invalidateSize();
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    logTerminal(`Error attempting to enable fullscreen: ${err.message}`);
+                });
             } else {
-                decoy.style.display = 'none';
-                container.style.display = 'flex';
-                document.title = "Workspace Console";
-                if (tabs.length === 0) addNewTab(homeURL);
+                document.exitFullscreen();
             }
         }
 
         function addNewTab(url = homeURL) {
             const id = 'tab-' + Math.random().toString(36).substr(2, 9);
             const tab = { id, url, title: 'New Tab' };
-            tabs.push(tab);
+            const session = sessions[currentSystem];
+            
+            session.tabs.push(tab);
             
             const viewport = document.getElementById('iframe-viewport');
-            const iframe = document.createElement('iframe');
-            iframe.id = 'iframe-' + id;
-            iframe.className = 'iframe-instance';
-            iframe.src = url;
-            iframe.setAttribute('sandbox', 'allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-downloads');
-            viewport.appendChild(iframe);
-
+            const wrapper = document.createElement('div');
+            wrapper.id = 'iframe-' + id;
+            wrapper.className = `iframe-instance`;
+            
+            if (url === 'internal://games') {
+                wrapper.innerHTML = `
+                    <div id="game-grid">
+                        <div class="game-card" onclick="loadGame('${id}', 'https://poki.com')"><span>🎮</span><b>Poki</b><p class="text-[10px] opacity-50">Web Arcade</p></div>
+                        <div class="game-card" onclick="loadGame('${id}', 'https://crazygames.com')"><span>🚀</span><b>CrazyGames</b><p class="text-[10px] opacity-50">Instant Play</p></div>
+                        <div class="game-card" onclick="loadGame('${id}', 'https://voxiom.io')"><span>🔫</span><b>Voxiom</b><p class="text-[10px] opacity-50">Battle Royale</p></div>
+                        <div class="game-card" onclick="loadGame('${id}', 'https://krunker.io')"><span>🎯</span><b>Krunker</b><p class="text-[10px] opacity-50">FPS Engine</p></div>
+                        <div class="game-card" onclick="loadGame('${id}', 'https://slope.io')"><span>🟢</span><b>Slope</b><p class="text-[10px] opacity-50">Infinite Runner</p></div>
+                    </div>
+                `;
+                tab.title = "Games Hub";
+            } else {
+                const iframe = document.createElement('iframe');
+                iframe.src = url;
+                iframe.setAttribute('sandbox', sandboxAttr);
+                iframe.onload = () => {
+                    tab.title = url.includes('google') ? 'Google' : url.split('//')[1]?.split('/')[0] || 'Page';
+                    renderTabs();
+                };
+                wrapper.appendChild(iframe);
+            }
+            
+            viewport.appendChild(wrapper);
             switchTab(id);
         }
 
-        function switchTab(id) {
-            activeTabId = id;
-            document.querySelectorAll('.iframe-instance').forEach(el => el.classList.remove('active'));
-            const activeIframe = document.getElementById('iframe-' + id);
-            if (activeIframe) {
-                activeIframe.classList.add('active');
-                document.getElementById('url-input').value = (activeIframe.src === homeURL) ? "" : activeIframe.src;
-            }
+        function loadGame(tabId, url) {
+            const session = sessions[currentSystem];
+            const tab = session.tabs.find(t => t.id === tabId);
+            tab.url = url;
+            const wrapper = document.getElementById('iframe-' + tabId);
+            wrapper.innerHTML = '';
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.setAttribute('sandbox', sandboxAttr);
+            wrapper.appendChild(iframe);
+            tab.title = "Loading Game...";
             renderTabs();
+        }
+
+        function switchTab(id) {
+            sessions[currentSystem].activeTabId = id;
+            updateViewportLayout();
+            const tab = sessions[currentSystem].tabs.find(t => t.id === id);
+            document.getElementById('url-input').value = (tab && !tab.url.includes('internal')) ? tab.url : "";
+            renderTabs();
+        }
+
+        function updateViewportLayout() {
+            const instances = document.querySelectorAll('.iframe-instance');
+            const activeId = sessions[currentSystem].activeTabId;
+            instances.forEach(el => {
+                el.style.display = el.id === 'iframe-' + activeId ? 'block' : 'none';
+            });
         }
 
         function renderTabs() {
             const list = document.getElementById('tabs-list');
             list.innerHTML = '';
-            tabs.forEach(tab => {
+            const session = sessions[currentSystem];
+            session.tabs.forEach(tab => {
                 const tabEl = document.createElement('div');
-                tabEl.className = `tab ${tab.id === activeTabId ? 'active' : ''}`;
+                tabEl.className = `tab ${tab.id === session.activeTabId ? 'active' : ''}`;
                 tabEl.onclick = () => switchTab(tab.id);
                 tabEl.innerHTML = `
-                    <span class="truncate pointer-events-none text-[11px]">${tab.title}</span>
+                    <span class="truncate pr-4">${tab.title}</span>
                     <button onclick="closeTab('${tab.id}', event)" class="tab-close">×</button>
                 `;
                 list.appendChild(tabEl);
@@ -438,77 +545,84 @@
 
         function closeTab(id, e) {
             e.stopPropagation();
-            if (tabs.length === 1) {
-                document.getElementById('iframe-' + id).src = homeURL;
-                tabs[0].title = "New Tab";
-                renderTabs();
-                return;
-            }
-            const index = tabs.findIndex(t => t.id === id);
-            tabs = tabs.filter(t => t.id !== id);
-            document.getElementById('iframe-' + id).remove();
-            if (activeTabId === id) switchTab(tabs[Math.max(0, index - 1)].id);
-            else renderTabs();
+            const session = sessions[currentSystem];
+            const index = session.tabs.findIndex(t => t.id === id);
+            session.tabs = session.tabs.filter(t => t.id !== id);
+            const frame = document.getElementById('iframe-' + id);
+            if (frame) frame.remove();
+            
+            if (session.tabs.length === 0) {
+                const initialUrl = currentSystem === 'games' ? 'internal://games' : homeURL;
+                addNewTab(initialUrl);
+            } else if (session.activeTabId === id) {
+                switchTab(session.tabs[Math.max(0, index - 1)].id);
+            } else renderTabs();
         }
 
         function navigate() {
             let val = document.getElementById('url-input').value.trim();
-            if (!val || !activeTabId) return;
+            const activeId = sessions[currentSystem].activeTabId;
+            if (!val || !activeId) return;
             
-            // Forces search queries to use English interface (hl=en)
-            if (!val.includes('.') || val.includes(' ')) {
-                val = `https://www.google.com/search?q=${encodeURIComponent(val)}&igu=1&hl=en`;
-            } else if (!val.startsWith('http')) {
-                val = 'https://' + val;
+            let finalUrl = val;
+            if (!val.includes('.') || val.includes(' ')) finalUrl = `https://www.google.com/search?q=${encodeURIComponent(val)}&igu=1`;
+            else if (!val.startsWith('http')) finalUrl = 'https://' + val;
+            
+            const tab = sessions[currentSystem].tabs.find(t => t.id === activeId);
+            tab.url = finalUrl;
+            const container = document.getElementById('iframe-' + activeId);
+            const iframe = container ? container.querySelector('iframe') : null;
+            if (iframe) {
+                iframe.src = finalUrl;
+            } else if (container) {
+                loadGame(activeId, finalUrl);
             }
-            
-            const iframe = document.getElementById('iframe-' + activeTabId);
-            iframe.src = val;
-            tabs.find(t => t.id === activeTabId).title = val.split('/')[2] || "New Tab";
+            tab.title = "Loading...";
             renderTabs();
         }
 
-        document.getElementById('url-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { navigate(); e.target.blur(); }
-        });
-
-        function setTheme(t) {
-            document.body.className = `theme-${t}`;
-            toggleSettings(false);
-        }
-
-        function toggleSettings(show) {
-            document.getElementById('settings-modal').style.display = show ? 'flex' : 'none';
-        }
-
         function browserControl(action) {
-            const iframe = document.getElementById('iframe-' + activeTabId);
-            if (iframe && action === 'reload') iframe.src = iframe.src;
+            const activeId = sessions[currentSystem].activeTabId;
+            const container = document.getElementById('iframe-' + activeId);
+            const iframe = container ? container.querySelector('iframe') : null;
+            if (!iframe) return;
+            try {
+                if (action === 'reload') iframe.src = iframe.src;
+                if (action === 'back') window.history.back();
+            } catch (e) { console.warn("Nav restricted"); }
         }
 
-        // Decoy Weather Logic
-        async function initWeather() {
-            try {
-                const locRes = await fetch('https://ipapi.co/json/');
-                const locData = await locRes.json();
-                document.getElementById('station-info').innerText = `NODE: ${locData.city.toUpperCase()} (${locData.ip})`;
-                logTerminal("Weather stream synchronized via " + locData.org);
-            } catch(e) { logTerminal("L-3 Sync Failure. Local mode."); }
+        function toggleProxyMode() {
+            isProxyActive = !isProxyActive;
+            const indicator = document.getElementById('proxy-indicator');
+            const btn = document.getElementById('proxy-btn');
+            indicator.classList.toggle('hidden', !isProxyActive);
+            btn.classList.toggle('text-amber-500', isProxyActive);
+            logTerminal(isProxyActive ? "Proxy Active: Routing through node_cluster_9." : "Proxy Disabled.");
         }
+
+        document.getElementById('url-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate(); });
 
         function logTerminal(msg) {
             const term = document.getElementById('terminal');
-            if (!term) return;
-            term.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
-            term.scrollTop = term.scrollHeight;
+            if (term) {
+                term.innerHTML += `<div><span class="text-emerald-800">[${new Date().toLocaleTimeString()}]</span> ${msg}</div>`;
+                term.scrollTop = term.scrollHeight;
+            }
         }
 
         window.onload = () => {
+            initDecoyMap();
             setInterval(() => {
                 const clock = document.getElementById('utc-clock');
                 if (clock) clock.innerText = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                const angle = Math.sin(Date.now() / 2000) * 20;
+                const compass = document.getElementById('wind-compass');
+                if (compass) compass.style.transform = `rotate(${angle + 45}deg)`;
+                const speed = document.getElementById('wind-speed');
+                if (speed) speed.innerText = (12 + Math.random()).toFixed(1) + " kn";
             }, 1000);
-            initWeather();
+            logTerminal("Atmospheric systems ready.");
         };
     </script>
 </body>
